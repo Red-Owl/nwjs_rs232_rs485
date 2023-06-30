@@ -1,0 +1,267 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta charset="UTF-8">
+    <script type="text/javascript">
+		var port;
+		var LINE = 100;
+		var TMP_LINE = 0;
+		var COM_ID = new Array();
+		var COM_REW = new Array();
+		var PLAY = new Array();
+		var SND = new Array();
+		var DIS = new Array();
+		var CLO = new Array();
+		var REC = new Array();		
+		var COMMAND = new Array();
+		var UI = new Array();
+		var INF = new Array();
+		var OPT = new Array(); 
+
+		function info(){
+			var str = "Prima di usare controllare i permessi di accesso alle porte seriali, chmod tty usb, user in dialup (linux)\n";
+			    str += "per i permessi etc, documentazione di virtualbox/arduino\n";
+				str += "update aggiorna le seriali disponibili\n";
+				str += "impostare la velocita\n";
+				str += "connect\n";
+				str += "DisconnecTT (close all connect)\n";
+				str += "Bug noto a volte (raramente) non si connette alla porta\n";
+				str += "Le porte a cui il programma e' connsesso non sono utilizzabili da altri programmi\n";
+				str += "Programma creato come monitor di arduino, rs485\n";
+				str += "Invia: manda una serie di BYTE alla seriale";
+				str += "Per disattivare openDevTools(); toglierlo dal body onload=";
+				str += "LGPL gufophp AT gmail.com\n";
+			alert(str);
+		}
+		
+		
+		function init(){
+			cnz = document.getElementById("container");
+			cnz.style.backgroundColor = "#DDD"; 
+			cnz.style.marginLeft ="center"; 
+			cnz.style.marginRight ="center"; 
+		}
+		function create_container(conid){
+			UI[conid] = document.createElement("div");
+			UI[conid].style.cssFloat="left";
+			UI[conid].style.border ="1px solid #00F"; 
+		    UI[conid].style.marginLeft = 2 + "px";
+			INF[conid] = document.createElement("span");
+			INF[conid].innerHTML = COM_ID[conid]['port'];				
+			
+			
+			
+			DIS[conid] = document.createElement("a");
+			DIS[conid].href= "javascript:disconnect_port('"+conid+"')";
+			DIS[conid].innerHTML="Disconnect";				
+			
+			
+			CLO[conid] = document.createElement("a");
+			CLO[conid].href= "javascript:close_ui_port('"+conid+"')";
+			CLO[conid].innerHTML="CLOSE";				
+			
+			
+			REC[conid] = document.createElement("a");
+			REC[conid].href= "javascript:reconnect_port('"+conid+"')";
+			REC[conid].innerHTML="Reconnect";				
+			
+			
+			COMMAND[conid] = document.createElement("input");
+			COMMAND[conid].type="text";
+			COMMAND[conid].style.width=300 + "px";
+			 
+			SND[conid] = document.createElement("a");
+			SND[conid].href= "javascript:send_command_exec('"+conid+"')";
+			SND[conid].style.width=50 + "px";
+			SND[conid].innerHTML="Invia";
+			 
+			PLAY[conid] = document.createElement("div");
+			PLAY[conid].style.color ="#FFF"; 
+			PLAY[conid].style.backgroundColor ="#000"; 
+			PLAY[conid].style.fontFamily = "'Lucida Console', 'Courier New', monospace"; 
+			PLAY[conid].style.fontSize = 12 + "px"; 
+			PLAY[conid].style.width=350 + "px"; 
+			PLAY[conid].style.height=480 + "px";
+			
+			PLAY[conid].style.border ="1px solid #CCC"; 
+			UI[conid].appendChild(INF[conid]);
+			UI[conid].appendChild(document.createElement("br"));
+			UI[conid].appendChild(DIS[conid]);
+			UI[conid].appendChild(CLO[conid]);
+			UI[conid].appendChild(REC[conid]);
+			UI[conid].appendChild(document.createElement("br"));
+			
+			UI[conid].appendChild(COMMAND[conid]);
+			
+			UI[conid].appendChild(SND[conid]);
+			UI[conid].appendChild(document.createElement("br"));
+			
+			
+			UI[conid].appendChild(PLAY[conid]);
+			cnz.appendChild(UI[conid]);
+		}
+
+		function reconnect_port(uur) {
+			var connectionOptions = {
+				"bitrate": OPT[uur]["bitrate"],
+				"dataBits": "eight",
+				"parityBit": "no",
+				"stopBits": "one",
+				"persistent": false,
+				"receiveTimeout": 500,
+				"sendTimeout": 500
+			};
+			chrome.serial.connect(
+				COM_ID[uur]['port'],
+				connectionOptions,
+				function(info){
+					console.log('onOpen', info);
+					console.log('onOpen2', COM_ID[uur]['port']);
+					COM_ID[uur]['coni'] = info.connectionId;
+					COM_REW[info.connectionId] = uur;
+			});
+		} 	
+		function disconnect_port(uur){
+			var number = COM_ID[uur]['coni'];
+			chrome.serial.disconnect(
+				parseInt(number),
+				function(info){
+					console.log('onOpen', info);
+					console.log('onOpen2', COM_ID[parseInt(number)]);
+				})
+		}
+		function close_ui_port(uur){
+			disconnect_port(uur);
+			cnz.removeChild(UI[uur]);
+			var ic = COM_ID[uur]['coni'];
+			delete(COM_REW[ic]);
+			delete(COM_ID[uur]);
+		}
+		function kill_all_gui(uur){
+			COM_ID = new Array();
+			COM_REW = new Array();
+			PLAY = new Array();
+			SND = new Array();
+			DIS = new Array();
+			CLO = new Array();
+			REC = new Array();		
+			COMMAND = new Array();
+			UI = new Array();
+			INF = new Array();
+			LINE = 100;
+			TMP_LINE = 0;
+			cnz.innerHTML = "";
+		}
+		function active_connect_close(){
+			chrome.serial.getConnections(function(connections) {
+				connections.forEach(function(c) {
+					chrome.serial.disconnect(c.connectionId, function() {});
+				});
+			});
+			kill_all_gui();
+		}
+		function send_command_exec(uur){
+			var stringa= COMMAND[uur].value;
+			var conid = COM_ID[uur]['coni'];
+			var uint8array = new TextEncoder().encode(stringa);
+			chrome.serial.send(
+				parseInt(conid),
+				uint8array,
+				serialsendgui
+			) 
+		}
+		function serialsendgui(gatto){
+			console.log('serialsend',  gatto);
+		}
+		function updateSerialPortList() {
+			chrome.serial.getDevices(function(ports) {
+				var combo = document.getElementById("serial_ports");
+				combo.options.length = 0;
+				for (let port of ports) {
+					if (port.vendorId) {
+						var option = document.createElement("option");
+						option.text = port.displayName + ":"  + port.path;
+						option.value = port.path;
+						combo.add(option, null);
+					}
+				}
+			});
+		}
+		function connectDevice(portName) {
+			var uur = (Math.random() + 1).toString(36).substring(7);
+			OPT[uur] = new Array();
+			OPT[uur]["bitrate"] = parseInt(document.getElementById("speed").value);
+			var connectionOptions = {
+				"bitrate": OPT[uur]["bitrate"],
+				"dataBits": "eight",
+				"parityBit": "no",
+				"stopBits": "one",
+				"persistent": false,
+				"receiveTimeout": 500,
+				"sendTimeout": 500
+			};
+			chrome.serial.connect(
+				portName,
+				connectionOptions,
+				function(info){
+					console.log('onOpen', info);
+					console.log('onOpen2', portName);
+					COM_ID[uur] = new Array();
+					COM_ID[uur]['port'] = portName;
+					COM_ID[uur]['coni'] = info.connectionId;
+					COM_REW[info.connectionId] = uur;
+					create_container(uur);
+			});
+		
+		} 
+		chrome.serial.onReceive.addListener(function(obj){
+			var data = new Uint8Array(obj.data);
+			var uur = COM_REW[obj.connectionId]
+			insert_into(data,uur);
+		});
+		function insert_into(data,conid){
+			TMP_LINE++;
+			if(TMP_LINE >= LINE){
+				PLAY[conid].innerHTML = "";
+				TMP_LINE = 0;
+			}
+			var str = new TextDecoder().decode(data);	
+			PLAY[conid].innerHTML += str;
+		}
+</script>
+<script>
+function openDevTools()
+{
+	require('nw.gui').Window.get().showDevTools();
+}
+</script>
+<body onload="openDevTools(); init();" style="margin:0">
+</head>
+<body>
+</script>
+    <div>
+      <select name="serial_ports" id="serial_ports" title="system serial port"></select> 
+      <a href="javascript:updateSerialPortList()">Update</a>
+		<select name="speed" id="speed" title="bitrate">
+			<option value="110">110</option> 
+			<option value="300">300</option> 
+			<option value="1200">1200</option> 
+			<option value="2400">2400</option> 
+			<option value="4800">4800</option> 
+			<option value="9600">9600</option> 
+			<option value="14400">14400</option> 
+			<option value="19200">19200</option> 
+			<option value="38400">38400</option>  
+			<option value="57600">57600</option> 
+			<option value="115200" selected="selected">115200</option> 
+		</select>      
+      
+      <a href="javascript:connectDevice(document.getElementById('serial_ports').value)">Connect</a>
+      <a href="javascript:active_connect_close()">DisconnecTT</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      <a href="javascript:info()">Info</a>
+    </div>
+	<div id="container" style="height:560px; width:590;"></div>
+    </div>
+</body>
+</html>
