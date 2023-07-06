@@ -29,8 +29,8 @@
 				str += "Bug noto a volte (raramente) non si connette alla porta\n";
 				str += "Le porte a cui il programma e' connsesso non sono utilizzabili da altri programmi\n";
 				str += "Programma creato come monitor di arduino, rs485\n";
-				str += "Invia: manda una serie di BYTE alla seriale";
-				str += "Per disattivare openDevTools(); toglierlo dal body onload=";
+				str += "Invia: manda una serie di BYTE alla seriale\n";
+				str += "Per disattivare openDevTools(); toglierlo dal body onload=\n";
 				str += "LGPL gufophp AT gmail.com\n";
 			alert(str);
 		}
@@ -162,17 +162,28 @@
 			kill_all_gui();
 		}
 		function send_command_exec(uur){
-			var stringa= COMMAND[uur].value;
+			var stringa = COMMAND[uur].value;
 			var conid = COM_ID[uur]['coni'];
 			var uint8array = new TextEncoder().encode(stringa);
 			chrome.serial.send(
 				parseInt(conid),
 				uint8array,
-				serialsendgui
-			) 
+				function(info){
+					console.log('SEND', info);
+					if(info==undefined){
+						PLAY[uur].innerHTML += '<br><span style="color:#0FF">Unconnected !<span><br>';
+					}else{
+						if(stringa.length==0){
+							PLAY[uur].innerHTML += '<br><span style="color:#F00">NULL<span><br>';
+						}else{
+							PLAY[uur].innerHTML += '<br><span style="color:#0F0">' + stringa + '<span><br>';
+						}
+					}
+			}) 
+			console.log('serialsend',  conid);
 		}
 		function serialsendgui(gatto){
-			console.log('serialsend',  gatto);
+			console.log('serfff',  gatto);
 		}
 		function updateSerialPortList() {
 			chrome.serial.getDevices(function(ports) {
